@@ -52,6 +52,9 @@
 
         .camera-section {
             position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
         }
 
         .camera-container {
@@ -242,13 +245,59 @@
             box-shadow: 0 5px 15px rgba(255, 20, 147, 0.4);
         }
 
-        .capture-btn:hover {
+        .capture-btn:hover:not(:disabled) {
             transform: translateY(-3px);
             box-shadow: 0 8px 20px rgba(255, 20, 147, 0.5);
         }
 
-        .capture-btn:active {
+        .capture-btn:active:not(:disabled) {
             transform: translateY(0);
+        }
+
+        .capture-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .permission-prompt {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            z-index: 20;
+        }
+
+        .permission-prompt h3 {
+            color: #FF1493;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .permission-prompt p {
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .permission-btn {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #FF1493 0%, #FF69B4 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: all 0.3s;
+        }
+
+        .permission-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 20, 147, 0.4);
         }
 
         .results-section {
@@ -277,20 +326,30 @@
 
         .download-btn {
             position: absolute;
-            bottom: 10px;
-            right: 10px;
-            padding: 10px 20px;
+            bottom: 15px;
+            right: 15px;
+            padding: 12px 24px;
             background: linear-gradient(135deg, #FF1493 0%, #FF69B4 100%);
             color: white;
             border: none;
-            border-radius: 10px;
+            border-radius: 12px;
             cursor: pointer;
             font-weight: bold;
             transition: all 0.3s;
+            font-size: 1em;
+            box-shadow: 0 4px 12px rgba(255, 20, 147, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .download-btn:hover {
-            transform: scale(1.05);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(255, 20, 147, 0.5);
+        }
+
+        .download-btn:active {
+            transform: translateY(0);
         }
 
         input[type="file"] {
@@ -359,7 +418,13 @@
                     <canvas id="canvas"></canvas>
                     <div class="timer-overlay" id="timer"></div>
                     <div class="frame-preview" id="framePreview"></div>
+                    <div class="permission-prompt" id="permissionPrompt" style="display: none;">
+                        <h3>📸 Izin Akses Kamera</h3>
+                        <p>Kami memerlukan akses ke kamera Anda untuk mengambil foto. Klik tombol di bawah untuk memberikan izin.</p>
+                        <button class="permission-btn" onclick="requestCameraPermission()">Aktifkan Kamera</button>
+                    </div>
                 </div>
+                <button class="capture-btn" id="captureBtn" onclick="startCapture()" disabled>📷 AMBIL FOTO</button>
             </div>
 
             <div class="controls">
@@ -393,8 +458,6 @@
                     </label>
                     <input type="file" id="customFilter" accept=".glb" onchange="uploadCustomFilter(event)">
                 </div>
-
-                <button class="capture-btn" onclick="startCapture()">📷 AMBIL FOTO</button>
             </div>
         </div>
 
@@ -414,6 +477,8 @@
         let capturedPhotos = [];
         let customFrames = [];
         let customFilters = [];
+        let cameraStream = null;
+        let cameraActive = false;
         
         // Default frames untuk setiap layout
         const defaultFrames = {
@@ -437,6 +502,12 @@
 
         // Inisialisasi kamera
         async function initCamera() {
+            // Tampilkan prompt permission
+            document.getElementById('permissionPrompt').style.display = 'block';
+        }
+
+        // Request camera permission
+        async function requestCameraPermission() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
@@ -445,11 +516,23 @@
                         height: { ideal: 720 }
                     } 
                 });
+                
                 video.srcObject = stream;
-                loadFrames();
+                cameraStream = stream;
+                cameraActive = true;
+                
+                // Sembunyikan prompt dan aktifkan tombol capture
+                document.getElementById('permissionPrompt').style.display = 'none';
+                document.getElementById('captureBtn').disabled = false;
+                
+                // Load frames setelah kamera aktif
+                video.addEventListener('loadedmetadata', () => {
+                    loadFrames();
+                });
+                
             } catch (err) {
-                alert('Tidak dapat mengakses kamera. Pastikan Anda memberikan izin kamera.');
-                console.error(err);
+                alert('Tidak dapat mengakses kamera. Pastikan Anda memberikan izin kamera dan tidak ada aplikasi lain yang menggunakan kamera.');
+                console.error('Camera error:', err);
             }
         }
 
@@ -553,6 +636,14 @@
 
         // Start capture dengan timer
         async function startCapture() {
+            if (!cameraActive) {
+                alert('Kamera belum aktif. Silakan aktifkan kamera terlebih dahulu.');
+                return;
+            }
+            
+            // Disable tombol saat proses capture
+            document.getElementById('captureBtn').disabled = true;
+            
             capturedPhotos = [];
             const timerEl = document.getElementById('timer');
             
@@ -576,6 +667,9 @@
             
             // Gabungkan foto sesuai layout
             combinePhotos();
+            
+            // Enable kembali tombol capture
+            document.getElementById('captureBtn').disabled = false;
         }
 
         // Capture single photo
@@ -688,7 +782,7 @@
             
             const downloadBtn = document.createElement('button');
             downloadBtn.className = 'download-btn';
-            downloadBtn.textContent = '⬇️ Download';
+            downloadBtn.innerHTML = '⬇️ Download';
             downloadBtn.onclick = () => downloadImage(imageData);
             
             resultItem.appendChild(img);
@@ -702,9 +796,12 @@
         // Download image
         function downloadImage(imageData) {
             const link = document.createElement('a');
-            link.download = `pose-id-${Date.now()}.png`;
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            link.download = `pose-id-${timestamp}.png`;
             link.href = imageData;
+            document.body.appendChild(link);
             link.click();
+            document.body.removeChild(link);
         }
 
         // Initialize
