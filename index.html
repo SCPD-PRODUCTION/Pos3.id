@@ -622,4 +622,93 @@
             }
             
             // Draw photos
-            const promises = capturedPhotos.map((photo
+            const promises = capturedPhotos.map((photo, index) => {
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        let x = 0, y = 0;
+                        
+                        switch(currentLayout) {
+                            case 1:
+                                x = 0;
+                                y = 0;
+                                break;
+                            case 2:
+                                x = 0;
+                                y = photoHeight * index;
+                                break;
+                            case 3:
+                                x = 0;
+                                y = photoHeight * index;
+                                break;
+                            case 4:
+                                x = (index % 2) * photoWidth;
+                                y = Math.floor(index / 2) * photoHeight;
+                                break;
+                            case 5:
+                                x = 0;
+                                y = photoHeight * index;
+                                break;
+                        }
+                        
+                        finalCtx.drawImage(img, x, y, photoWidth, photoHeight);
+                        resolve();
+                    };
+                    img.src = photo;
+                });
+            });
+            
+            Promise.all(promises).then(() => {
+                // Draw frame
+                if (currentFrame) {
+                    const frameImg = new Image();
+                    frameImg.onload = () => {
+                        finalCtx.drawImage(frameImg, 0, 0, finalCanvas.width, finalCanvas.height);
+                        displayResult(finalCanvas.toDataURL('image/png'));
+                    };
+                    frameImg.src = currentFrame;
+                } else {
+                    displayResult(finalCanvas.toDataURL('image/png'));
+                }
+            });
+        }
+
+        // Display result
+        function displayResult(imageData) {
+            const resultsSection = document.getElementById('resultsSection');
+            const resultsGrid = document.getElementById('resultsGrid');
+            
+            resultsSection.style.display = 'block';
+            
+            const resultItem = document.createElement('div');
+            resultItem.className = 'result-item';
+            
+            const img = document.createElement('img');
+            img.src = imageData;
+            
+            const downloadBtn = document.createElement('button');
+            downloadBtn.className = 'download-btn';
+            downloadBtn.textContent = '⬇️ Download';
+            downloadBtn.onclick = () => downloadImage(imageData);
+            
+            resultItem.appendChild(img);
+            resultItem.appendChild(downloadBtn);
+            resultsGrid.insertBefore(resultItem, resultsGrid.firstChild);
+            
+            // Scroll ke hasil
+            resultsSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Download image
+        function downloadImage(imageData) {
+            const link = document.createElement('a');
+            link.download = `pose-id-${Date.now()}.png`;
+            link.href = imageData;
+            link.click();
+        }
+
+        // Initialize
+        initCamera();
+    </script>
+</body>
+</html>
